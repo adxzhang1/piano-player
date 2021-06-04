@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import './App.css';
-import { Player } from './player';
+import React, { useState } from "react";
+import "./App.css";
+import { Player } from "./sections/player";
 
 const FILES = 3;
 

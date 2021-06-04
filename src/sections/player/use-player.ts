@@ -1,22 +1,22 @@
-import React, { FC, useEffect, useRef, useState } from 'react';
-import * as Tone from 'tone';
-import { Midi } from '@tonejs/midi';
-import { Note } from '@tonejs/midi/dist/Note';
+import { useEffect, useRef, useState } from "react";
+import * as Tone from "tone";
+import { Midi } from "@tonejs/midi";
+import { Note } from "@tonejs/midi/dist/Note";
 
 const genKeyNames = () => {
   const keyNames = [
-    'C',
-    'C#',
-    'D',
-    'D#',
-    'E',
-    'F',
-    'F#',
-    'G',
-    'G#',
-    'A',
-    'A#',
-    'B',
+    "C",
+    "C#",
+    "D",
+    "D#",
+    "E",
+    "F",
+    "F#",
+    "G",
+    "G#",
+    "A",
+    "A#",
+    "B",
   ];
 
   const keys = [];
@@ -31,8 +31,9 @@ const genKeyNames = () => {
 
 const keyNames = genKeyNames();
 
-const usePlayer = (file: string) => {
-  const [input, setInput] = useState('');
+export const usePlayer = (file: string) => {
+  const [input, setInput] = useState("");
+  const [volume, setVolume] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isDone, setIsDone] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -142,18 +143,21 @@ const usePlayer = (file: string) => {
     init();
 
     return () => {
-      if (synth) {
-        synth.releaseAll();
-        synth.disconnect();
-        synth.dispose();
-        Tone.Transport.stop();
+      const dispose = async () => {
+        if (synth) {
+          Tone.Transport.stop();
+          synth.releaseAll();
+          synth.disconnect();
+          synth.dispose();
+        }
+        for (const { id } of Object.values(schedules)) {
+          Tone.Transport.clear(id);
+        }
+        for (const id of Array.from(clearNoteIds)) {
+          clearTimeout(id);
+        }
       }
-      for (const { id } of Object.values(schedules)) {
-        Tone.Transport.clear(id);
-      }
-      for (const id of Array.from(clearNoteIds)) {
-        clearTimeout(id);
-      }
+      dispose()
     };
   }, [file]);
 
@@ -173,27 +177,40 @@ const usePlayer = (file: string) => {
   };
 
   const togglePlay = () => {
-    if (synthRef.current) {
-      if (isPlaying) {
-        Tone.Transport.pause();
-        synthRef.current.releaseAll();
-        setIsPlaying(false);
-      } else {
-        if (isDone) {
-          Tone.Transport.pause();
-          Tone.Transport.seconds = 0;
-          setIsDone(false);
-        }
-        Tone.start();
-        Tone.Transport.start();
-        setIsPlaying(true);
-      }
+    if (!synthRef.current) {
+      return;
     }
+
+    if (isPlaying) {
+      Tone.Transport.pause();
+      synthRef.current.releaseAll();
+      setIsPlaying(false);
+    } else {
+      if (isDone) {
+        Tone.Transport.pause();
+        Tone.Transport.seconds = 0;
+        setIsDone(false);
+      }
+      Tone.start();
+      Tone.Transport.start();
+      setIsPlaying(true);
+    }
+  };
+
+  const updateVolume = (val: number) => {
+    if (!synthRef.current) {
+      return;
+    }
+
+    synthRef.current.volume.value = val;
+    setVolume(val);
   };
 
   return {
     input,
     setInput,
+    volume,
+    updateVolume,
     isPlaying,
     isDone,
     duration,
@@ -203,78 +220,4 @@ const usePlayer = (file: string) => {
     togglePlay,
     synthRef,
   };
-};
-
-interface PlayerProps {
-  file: string;
-}
-
-export const Player: FC<PlayerProps> = ({ file }) => {
-  const {
-    input,
-    setInput,
-    duration,
-    isPlaying,
-    keys,
-    fallNotes,
-    jump,
-    togglePlay,
-  } = usePlayer(file);
-
-  const fallNotesByKeyName: { [key: string]: Note[] } = {};
-  for (const fallingNote of fallNotes) {
-    if (!fallNotesByKeyName[fallingNote.name]) {
-      fallNotesByKeyName[fallingNote.name] = [];
-    }
-    fallNotesByKeyName[fallingNote.name].push(fallingNote);
-  }
-  console.log(fallNotesByKeyName);
-
-  return (
-    <div className="App">
-      <div>
-        <input value={input} onChange={(e) => setInput(e.target.value)}></input>
-        <button onClick={jump}>Jump</button>
-      </div>
-      <button onClick={togglePlay}>{isPlaying ? 'Pause' : 'Play'}</button>
-      <div>
-        <p>{Math.round(Tone.Transport.seconds)}</p>
-        <p>length: {duration.toFixed(1)}</p>
-      </div>
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          backgroundColor: 'lightblue',
-          padding: '1rem 2rem',
-        }}
-      >
-        {keys.map((key) => (
-          <div
-            key={key.name}
-            style={{
-              padding: '3px',
-              borderRadius: '2px',
-              backgroundColor: key.isActive ? 'white' : 'lightblue',
-              position: 'relative',
-            }}
-          >
-            <p
-              style={{
-                color: key.isActive ? 'lightblue' : 'white',
-                fontWeight: 'bold',
-              }}
-            >
-              {key.name}
-            </p>
-            {fallNotesByKeyName[key.name]?.map((note) => (
-              <div key={JSON.stringify(note)} className="falling-note">
-                <p style={{ color: 'cyan', fontWeight: 'bold' }}>{note.name}</p>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 };
