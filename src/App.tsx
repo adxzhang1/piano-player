@@ -1,26 +1,28 @@
-import React from 'react';
-import logo from './logo.svg';
+import React, { useState } from 'react';
 import './App.css';
+import { Player } from './player';
 
-function App() {
+const FILES = 3;
+
+const App = () => {
+  const [index, setIndex] = useState(0);
+
+  const file = `s${index + 1}.mid`;
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
+    <div>
+      <div>
+        <p>{file}</p>
+        <button
+          onClick={() => {
+            setIndex((index + 1) % FILES);
+          }}
         >
-          Learn React
-        </a>
-      </header>
+          Next
+        </button>
+      </div>
+      <Player key={file} file={file} />
     </div>
   );
-}
+};
 
 export default App;
