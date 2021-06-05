@@ -1,5 +1,4 @@
 import React, { FC } from "react";
-import * as Tone from "tone";
 import { Note } from "@tonejs/midi/dist/Note";
 import { Slider } from "antd";
 import { usePlayer } from "./use-player";
@@ -14,6 +13,8 @@ export const Player: FC<PlayerProps> = ({ file }) => {
     setInput,
     volume,
     updateVolume,
+    time,
+    updateTime,
     duration,
     isPlaying,
     keys,
@@ -43,10 +44,16 @@ export const Player: FC<PlayerProps> = ({ file }) => {
             updateVolume(val - 25);
           }}
         />
+        <Slider
+          min={0}
+          max={duration}
+          value={time}
+          onChange={(val: number) => updateTime(val)}
+        />
       </div>
       <button onClick={togglePlay}>{isPlaying ? "Pause" : "Play"}</button>
       <div>
-        <p>{Math.round(Tone.Transport.seconds)}</p>
+        <p>{Math.round(time)}</p>
         <p>length: {duration.toFixed(1)}</p>
       </div>
       <div

@@ -32,6 +32,7 @@ const genKeyNames = () => {
 const keyNames = genKeyNames();
 
 export const usePlayer = (file: string) => {
+  const [time, setTime] = useState(0);
   const [input, setInput] = useState("");
   const [volume, setVolume] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -43,6 +44,15 @@ export const usePlayer = (file: string) => {
   const [fallNotes, setFallNotes] = useState<Note[]>([]);
 
   const synthRef = useRef<Tone.PolySynth | null>(null);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTime(Math.min(duration, Tone.Transport.seconds));
+    }, 1000)
+    return () => {
+      clearInterval(id)
+    }
+  }, [duration])
 
   useEffect(() => {
     let synth: Tone.PolySynth;
@@ -168,15 +178,16 @@ export const usePlayer = (file: string) => {
         return;
       }
 
-      synthRef.current.releaseAll();
       Tone.Transport.pause();
+      synthRef.current.releaseAll();
       Tone.Transport.seconds = time;
       Tone.Transport.start();
+      synthRef.current.releaseAll();
       setIsPlaying(true);
     }
   };
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     if (!synthRef.current) {
       return;
     }
@@ -193,6 +204,7 @@ export const usePlayer = (file: string) => {
       }
       Tone.start();
       Tone.Transport.start();
+      synthRef.current.releaseAll();
       setIsPlaying(true);
     }
   };
@@ -206,11 +218,29 @@ export const usePlayer = (file: string) => {
     setVolume(val);
   };
 
+  const updateTime = (val: number) => {
+    if (val < 0 || val > duration || !synthRef.current) {
+      return;
+    }
+    
+    Tone.Transport.pause();
+    Tone.Transport.seconds = val;
+    synthRef.current.releaseAll();
+    setTime(val);
+    setFallNotes([])
+
+    if (isPlaying) {
+      Tone.Transport.start();
+    }
+  }
+
   return {
     input,
     setInput,
     volume,
     updateVolume,
+    time,
+    updateTime,
     isPlaying,
     isDone,
     duration,
