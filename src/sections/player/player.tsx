@@ -2,6 +2,7 @@ import React, { FC } from 'react';
 import { Note } from '@tonejs/midi/dist/Note';
 import { Slider } from 'antd';
 import { usePlayer } from './use-player';
+import { MovingNote } from './moving-note';
 
 interface PlayerProps {
   file: string;
@@ -23,6 +24,8 @@ export const Player: FC<PlayerProps> = ({ file }) => {
     togglePlay,
     synthRef,
     start,
+    mode,
+    setMode,
   } = usePlayer(file);
 
   const fallNotesByKeyName: { [key: string]: Note[] } = {};
@@ -35,6 +38,17 @@ export const Player: FC<PlayerProps> = ({ file }) => {
 
   return (
     <div className="App">
+      <button
+        onClick={() => {
+          if (mode === 'rain') {
+            setMode('random');
+          } else {
+            setMode('rain');
+          }
+        }}
+      >
+        {mode}
+      </button>
       <button onClick={() => console.log(synthRef.current)}>Click</button>
       <div>
         <input value={input} onChange={(e) => setInput(e.target.value)}></input>
@@ -91,9 +105,12 @@ export const Player: FC<PlayerProps> = ({ file }) => {
               {key.name}
             </p>
             {fallNotesByKeyName[key.name]?.map((note) => (
-              <div key={JSON.stringify(note)} className="falling-note">
+              <MovingNote key={JSON.stringify(note)} mode={mode}>
                 <p style={{ color: 'cyan', fontWeight: 'bold' }}>{note.name}</p>
-              </div>
+              </MovingNote>
+              // <div key={JSON.stringify(note)} className="falling-note">
+              //   <p style={{ color: 'cyan', fontWeight: 'bold' }}>{note.name}</p>
+              // </div>
             ))}
           </div>
         ))}

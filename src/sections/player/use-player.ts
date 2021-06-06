@@ -43,6 +43,8 @@ export const usePlayer = (file: string) => {
   );
   const [fallNotes, setFallNotes] = useState<Note[]>([]);
 
+  const [mode, setMode] = useState<'rain' | 'random'>('rain');
+
   const synthRef = useRef<Tone.PolySynth | null>(null);
 
   useEffect(() => {
@@ -232,6 +234,7 @@ export const usePlayer = (file: string) => {
         setIsDone(false);
       }
       Tone.Transport.start();
+      Tone.start();
       setIsPlaying(true);
     }
   };
@@ -276,5 +279,7 @@ export const usePlayer = (file: string) => {
     togglePlay,
     synthRef,
     start,
+    mode,
+    setMode,
   };
 };
