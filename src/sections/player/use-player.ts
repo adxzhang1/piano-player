@@ -1,22 +1,22 @@
-import { useEffect, useRef, useState } from "react";
-import * as Tone from "tone";
-import { Midi } from "@tonejs/midi";
-import { Note } from "@tonejs/midi/dist/Note";
+import { useEffect, useRef, useState } from 'react';
+import * as Tone from 'tone';
+import { Midi } from '@tonejs/midi';
+import { Note } from '@tonejs/midi/dist/Note';
 
 const genKeyNames = () => {
   const keyNames = [
-    "C",
-    "C#",
-    "D",
-    "D#",
-    "E",
-    "F",
-    "F#",
-    "G",
-    "G#",
-    "A",
-    "A#",
-    "B",
+    'C',
+    'C#',
+    'D',
+    'D#',
+    'E',
+    'F',
+    'F#',
+    'G',
+    'G#',
+    'A',
+    'A#',
+    'B',
   ];
 
   const keys = [];
@@ -33,7 +33,7 @@ const keyNames = genKeyNames();
 
 export const usePlayer = (file: string) => {
   const [time, setTime] = useState(0);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState('');
   const [volume, setVolume] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isDone, setIsDone] = useState(false);
@@ -46,13 +46,15 @@ export const usePlayer = (file: string) => {
   const synthRef = useRef<Tone.PolySynth | null>(null);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      setTime(Math.min(duration, Tone.Transport.seconds));
-    }, 1000)
+    const id = Tone.Transport.scheduleRepeat((time) => {
+      Tone.Draw.schedule(() => {
+        setTime(Math.min(duration, Tone.Transport.seconds));
+      }, time);
+    }, '1s');
     return () => {
-      clearInterval(id)
-    }
-  }, [duration])
+      Tone.Transport.clear(id);
+    };
+  }, [duration, isPlaying]);
 
   useEffect(() => {
     let synth: Tone.PolySynth;
@@ -80,7 +82,22 @@ export const usePlayer = (file: string) => {
 
       // setup
       Tone.Transport.pause();
-      synth = new Tone.PolySynth(Tone.Synth).toDestination().sync();
+      synth = new Tone.PolySynth(Tone.Synth, {
+        envelope: {
+          attack: 0.005,
+          attackCurve: 'linear',
+          decay: 0.05,
+          decayCurve: 'exponential',
+          release: 1,
+          releaseCurve: 'exponential',
+          sustain: 0.3,
+        },
+        oscillator: {
+          type: 'triangle25',
+        },
+      })
+        .toDestination()
+        .sync();
 
       const notes: Note[] = [];
       const notesByTime: { [key: string]: Note[] } = {};
@@ -106,43 +123,47 @@ export const usePlayer = (file: string) => {
 
         // schedule state update
         schedules[time] = {
-          id: Tone.Transport.schedule(() => {
-            // active notes
-            const activeNotes = notes.filter(
-              (note) => note.time <= time && note.time + note.duration > time
-            );
-
-            // falling notes
-            setFallNotes((fallNotes) => {
-              return [...fallNotes, ...notesByTime[key]];
-            });
-            const clearNoteId = setTimeout(() => {
-              setFallNotes((fallNotes) => {
-                const nextNotes = fallNotes.filter((note) => note.time > time);
-                return nextNotes;
-              });
-              clearNoteIds.delete(clearNoteId);
-            }, 2000);
-            clearNoteIds.add(clearNoteId);
-
-            // active keys
-            setKeys((keys) => {
-              const activeNotesSet = new Set(
-                activeNotes.map(({ name }) => name)
+          id: Tone.Transport.schedule((toneTime) => {
+            Tone.Draw.schedule(() => {
+              // active notes
+              const activeNotes = notes.filter(
+                (note) => note.time <= time && note.time + note.duration > time
               );
-              return keys.map((key) => {
-                if (activeNotesSet.has(key.name)) {
+
+              // falling notes
+              setFallNotes((fallNotes) => {
+                return [...fallNotes, ...notesByTime[key]];
+              });
+              const clearNoteId = setTimeout(() => {
+                setFallNotes((fallNotes) => {
+                  const nextNotes = fallNotes.filter(
+                    (note) => note.time > time
+                  );
+                  return nextNotes;
+                });
+                clearNoteIds.delete(clearNoteId);
+              }, 2000);
+              clearNoteIds.add(clearNoteId);
+
+              // active keys
+              setKeys((keys) => {
+                const activeNotesSet = new Set(
+                  activeNotes.map(({ name }) => name)
+                );
+                return keys.map((key) => {
+                  if (activeNotesSet.has(key.name)) {
+                    return {
+                      ...key,
+                      isActive: true,
+                    };
+                  }
                   return {
                     ...key,
-                    isActive: true,
+                    isActive: false,
                   };
-                }
-                return {
-                  ...key,
-                  isActive: false,
-                };
+                });
               });
-            });
+            }, toneTime);
           }, time),
           notes: [],
         };
@@ -156,7 +177,9 @@ export const usePlayer = (file: string) => {
       const dispose = async () => {
         if (synth) {
           Tone.Transport.stop();
-          synth.releaseAll();
+          Tone.Transport.schedule(() => {
+            synthRef.current?.releaseAll();
+          }, Tone.Transport.seconds);
           synth.disconnect();
           synth.dispose();
         }
@@ -166,8 +189,8 @@ export const usePlayer = (file: string) => {
         for (const id of Array.from(clearNoteIds)) {
           clearTimeout(id);
         }
-      }
-      dispose()
+      };
+      dispose();
     };
   }, [file]);
 
@@ -179,10 +202,11 @@ export const usePlayer = (file: string) => {
       }
 
       Tone.Transport.pause();
-      synthRef.current.releaseAll();
+      Tone.Transport.schedule(() => {
+        synthRef.current?.releaseAll();
+      }, Tone.Transport.seconds);
       Tone.Transport.seconds = time;
       Tone.Transport.start();
-      synthRef.current.releaseAll();
       setIsPlaying(true);
     }
   };
@@ -194,17 +218,20 @@ export const usePlayer = (file: string) => {
 
     if (isPlaying) {
       Tone.Transport.pause();
-      synthRef.current.releaseAll();
+      synthRef.current?.releaseAll();
+      setTimeout(() => {
+        synthRef.current?.releaseAll();
+      }, 100);
+
       setIsPlaying(false);
     } else {
       if (isDone) {
         Tone.Transport.pause();
+        synthRef.current?.releaseAll();
         Tone.Transport.seconds = 0;
         setIsDone(false);
       }
-      Tone.start();
       Tone.Transport.start();
-      synthRef.current.releaseAll();
       setIsPlaying(true);
     }
   };
@@ -222,17 +249,16 @@ export const usePlayer = (file: string) => {
     if (val < 0 || val > duration || !synthRef.current) {
       return;
     }
-    
-    Tone.Transport.pause();
-    Tone.Transport.seconds = val;
-    synthRef.current.releaseAll();
-    setTime(val);
-    setFallNotes([])
 
-    if (isPlaying) {
-      Tone.Transport.start();
-    }
-  }
+    Tone.Transport.pause();
+    synthRef.current?.releaseAll();
+    Tone.Transport.seconds = val;
+
+    setFallNotes([]);
+    setTime(val);
+  };
+
+  const start = () => Tone.Transport.start();
 
   return {
     input,
@@ -249,5 +275,6 @@ export const usePlayer = (file: string) => {
     jump,
     togglePlay,
     synthRef,
+    start,
   };
 };
