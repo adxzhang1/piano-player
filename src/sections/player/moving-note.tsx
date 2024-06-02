@@ -1,7 +1,7 @@
-import React, { FC, useState } from 'react';
-import { Animate } from 'react-move';
-import styled from 'styled-components';
-import { easeQuadOut } from 'd3-ease';
+import React, { FC, useState } from "react";
+import { Animate } from "react-move";
+import styled from "styled-components";
+import { easeQuadOut } from "d3-ease";
 
 const MovingNoteBody = styled.div`
   position: absolute;
@@ -12,7 +12,8 @@ const MovingNoteBody = styled.div`
 `;
 
 interface MovingNoteProps {
-  mode?: 'rain' | 'random';
+  mode?: "rain" | "random";
+  children?: React.ReactNode;
 }
 
 export const MovingNote: FC<MovingNoteProps> = ({ children, mode }) => {
@@ -41,7 +42,7 @@ export const MovingNote: FC<MovingNoteProps> = ({ children, mode }) => {
       })}
       enter={() => ({
         x: [left],
-        y: [mode === 'rain' ? 70 : top],
+        y: [mode === "rain" ? 70 : top],
         timing: { duration: 2000, ease: easeQuadOut },
       })}
     >
@@ -50,7 +51,7 @@ export const MovingNote: FC<MovingNoteProps> = ({ children, mode }) => {
 
         return (
           <MovingNoteBody
-            style={{ top: `${y}vh`, left: mode === 'rain' ? '' : `${x}vw` }}
+            style={{ top: `${y}vh`, left: mode === "rain" ? "" : `${x}vw` }}
           >
             {children}
           </MovingNoteBody>
